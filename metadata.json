@@ -1,0 +1,8 @@
+{
+  "name": "Copy of cronograma cermam final",
+  "description": "Um planejador de estudos avançado para provas de Residência Médica, com cronograma dinâmico, acompanhamento de progresso e assistente inteligente Gemini.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

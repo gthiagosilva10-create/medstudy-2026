@@ -45,6 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const baseTabs = [
     { id: 'dashboard', icon: '📊' },
     { id: 'schedule', icon: '📅' },
+    { id: 'past-exams', icon: '🎯' },
     { id: 'hot-topics', icon: '🔥' },
     { id: 'topics', icon: '📚' },
     { id: 'flashcards', icon: '🃏' },
@@ -55,6 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     { id: 'notes', icon: '📒' },
     { id: 'assistant', icon: '🤖' },
     { id: 'portal', icon: '🌐' },
+    { id: 'personalization', icon: '🎨' },
   ];
 
   const sortedTabs = tabOrder.map(id => baseTabs.find(t => t.id === id)).filter(Boolean) as { id: string, icon: string }[];
@@ -83,15 +85,11 @@ const Sidebar: React.FC<SidebarProps> = ({
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         setFocusedTabIndex(prev => (prev > 0 ? prev - 1 : sortedTabs.length - 1));
-      } else if (e.key === ' ') {
+      } else if (e.key === 'Enter') {
         if (focusedTabIndex !== -1) {
           e.preventDefault();
           const tab = sortedTabs[focusedTabIndex];
-          if (e.shiftKey && isOrderMode) {
-            // No action needed here, handled by arrows
-          } else {
-            setActiveTab(tab.id);
-          }
+          setActiveTab(tab.id);
         }
       }
 
@@ -123,22 +121,37 @@ const Sidebar: React.FC<SidebarProps> = ({
     setEditingId(null);
   };
 
+  const getPrimaryColorClass = (type: 'bg' | 'text' | 'ring' | 'border' | 'shadow', color: string, intensity: string = '600') => {
+    return `${type}-${color}-${intensity}`;
+  };
+
   return (
     <div className={`${isCollapsed ? 'w-24' : 'w-72'} bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-r border-gray-100 dark:border-slate-800 h-full hidden md:flex flex-col z-20 transition-all duration-300 ease-in-out`}>
       <div className={`p-6 flex flex-col ${isCollapsed ? 'items-center' : ''}`}>
         <div className="flex justify-between items-center mb-6 w-full">
-           {!isCollapsed && (
-             <button 
-              onClick={() => setIsOrderMode(!isOrderMode)}
-              className={`p-2 rounded-xl transition-all ${isOrderMode ? 'bg-orange-500 text-white shadow-lg' : 'bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-orange-500'}`}
-              title="Organizar Pastas (Atalho: Shift+Setas)"
-             >
-               ⚙️
-             </button>
-           )}
+           <div className="flex gap-2">
+             {!isCollapsed && (
+               <>
+                 <button 
+                  onClick={() => setActiveTab('personalization')}
+                  className={`p-2 rounded-xl transition-all shadow-sm ${activeTab === 'personalization' ? 'bg-blue-600 text-white shadow-lg' : 'bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-blue-500'}`}
+                  title="Personalizar App"
+                 >
+                   🎨
+                 </button>
+                 <button 
+                  onClick={() => setIsOrderMode(!isOrderMode)}
+                  className={`p-2 rounded-xl transition-all shadow-sm ${isOrderMode ? 'bg-orange-500 text-white shadow-lg' : 'bg-gray-100 dark:bg-slate-800 text-gray-400 hover:text-orange-500'}`}
+                  title="Organizar Pastas (Atalho: Shift+Setas)"
+                 >
+                   ⚙️
+                 </button>
+               </>
+             )}
+           </div>
            <button 
             onClick={onToggleCollapse}
-            className="p-2 bg-gray-100 dark:bg-slate-800 rounded-xl text-gray-400 hover:text-blue-500 transition-all"
+            className="p-2 bg-gray-100 dark:bg-slate-800 rounded-xl text-gray-400 hover:text-blue-500 transition-all shadow-sm"
             title={isCollapsed ? "Expandir Menu" : "Recolher Menu"}
            >
              {isCollapsed ? '➡️' : '⬅️'}
@@ -151,7 +164,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               {isEditingBrand ? (
                 <input 
                   autoFocus
-                  className={`text-2xl font-bold text-${primaryColor}-600 dark:text-${primaryColor}-400 bg-gray-50 dark:bg-slate-800 outline-none w-full rounded-lg px-2`}
+                  className={`text-2xl font-bold ${getPrimaryColorClass('text', primaryColor)} bg-gray-50 dark:bg-slate-800 outline-none w-full rounded-lg px-2`}
                   value={appName}
                   onChange={(e) => onUpdateAppName(e.target.value)}
                   onBlur={() => setIsEditingBrand(false)}
@@ -159,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                 />
               ) : (
                 <div className="flex items-center gap-2">
-                  <h1 className={`text-2xl font-black text-${primaryColor}-600 dark:text-${primaryColor}-400 flex items-center gap-2 truncate`}>
+                  <h1 className={`text-2xl font-black ${getPrimaryColorClass('text', primaryColor)} flex items-center gap-2 truncate`}>
                     <span>🩺</span> {appName}
                   </h1>
                   <button 
@@ -211,7 +224,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             {editingId === tab.id && !isCollapsed ? (
-              <div className={`flex-1 flex items-center gap-2 px-4 py-3 bg-${primaryColor}-50 dark:bg-${primaryColor}-900/30 rounded-2xl`}>
+              <div className={`flex-1 flex items-center gap-2 px-4 py-3 ${getPrimaryColorClass('bg', primaryColor, '50')} dark:${getPrimaryColorClass('bg', primaryColor, '900')}/30 rounded-2xl`}>
                 <span className="text-lg">{tab.icon}</span>
                 <input 
                   autoFocus
@@ -220,7 +233,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onChange={(e) => setTempLabel(e.target.value)}
                   onBlur={() => saveLabel(tab.id)}
                   onKeyDown={(e) => e.key === 'Enter' && saveLabel(tab.id)}
-                  className={`bg-white dark:bg-slate-800 border-none focus:ring-1 focus:ring-${primaryColor}-400 rounded px-1 py-0.5 text-sm w-full font-medium dark:text-white`}
+                  className={`bg-white dark:bg-slate-800 border-none focus:${getPrimaryColorClass('ring', primaryColor, '400')} focus:ring-1 rounded px-1 py-0.5 text-sm w-full font-medium dark:text-white`}
                 />
               </div>
             ) : (
@@ -235,9 +248,9 @@ const Sidebar: React.FC<SidebarProps> = ({
                   isCollapsed ? 'justify-center w-14 h-14' : 'flex-1 px-4 py-3.5'
                 } ${
                   activeTab === tab.id
-                    ? `bg-${primaryColor}-600 text-white shadow-xl shadow-${primaryColor}-200 dark:shadow-${primaryColor}-900/20 rounded-2xl`
+                    ? `${getPrimaryColorClass('bg', primaryColor, '600')} text-white shadow-xl shadow-${primaryColor}-200 dark:shadow-${primaryColor}-900/20 rounded-2xl`
                     : focusedTabIndex === idx 
-                      ? `bg-${primaryColor}-50 dark:bg-${primaryColor}-900/10 ring-2 ring-${primaryColor}-500/50 rounded-2xl text-${primaryColor}-700 dark:text-${primaryColor}-300`
+                      ? `${getPrimaryColorClass('bg', primaryColor, '50')} dark:${getPrimaryColorClass('bg', primaryColor, '900')}/10 ring-2 ${getPrimaryColorClass('ring', primaryColor, '500')}/50 rounded-2xl ${getPrimaryColorClass('text', primaryColor, '700')} dark:${getPrimaryColorClass('text', primaryColor, '300')}`
                       : 'text-gray-500 dark:text-slate-400 hover:bg-gray-100/50 dark:hover:bg-slate-800/50 hover:text-gray-900 dark:hover:text-white rounded-2xl'
                 }`}
               >
@@ -250,7 +263,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       className={`p-1 transition-opacity ${
                         activeTab === tab.id 
                         ? 'opacity-60 hover:opacity-100 text-white' 
-                        : `opacity-0 group-hover:opacity-100 text-gray-300 hover:text-${primaryColor}-600 dark:hover:text-${primaryColor}-400`
+                        : `opacity-0 group-hover:opacity-100 text-gray-300 hover:${getPrimaryColorClass('text', primaryColor, '600')} dark:hover:${getPrimaryColorClass('text', primaryColor, '400')}`
                       }`}
                       title="Renomear"
                     >
@@ -268,7 +281,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50/30 dark:bg-slate-900/30 transition-colors">
           <div className="bg-orange-50/80 dark:bg-orange-900/20 backdrop-blur-sm rounded-2xl p-4 border border-orange-100 dark:border-orange-900/30 shadow-inner text-center">
             <p className="text-[10px] text-orange-600 dark:text-orange-400 font-black uppercase tracking-widest mb-1">Dica de Teclado</p>
-            <p className="text-[9px] font-bold text-gray-800 dark:text-slate-200 italic">Use Setas p/ Navegar e Espaço p/ Selecionar</p>
+            <p className="text-[9px] font-bold text-gray-800 dark:text-slate-200 italic">Use Setas p/ Navegar e Enter p/ Selecionar</p>
           </div>
         </div>
       )}

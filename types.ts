@@ -15,6 +15,14 @@ export interface Topic {
   subTopics?: string[];
 }
 
+export interface SummaryFile {
+  id: string;
+  name: string;
+  type: 'pdf' | 'image' | 'other';
+  url: string;
+  addedAt: string;
+}
+
 export interface Area {
   id: string;
   name: string;
@@ -22,6 +30,7 @@ export interface Area {
   topics: Topic[];
   color: string;
   summary?: string;
+  files?: SummaryFile[];
 }
 
 export interface ExamRecord {
@@ -31,6 +40,28 @@ export interface ExamRecord {
   totalQuestions: number;
   correctAnswers: number;
   observations: string;
+}
+
+export interface QuestionAnalysis {
+  id: string;
+  questionNumber: string;
+  topic?: string;
+  userAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+  rationale: string; 
+  distractorAnalysis: string; 
+}
+
+export interface PastExam {
+  id: string;
+  institution: string;
+  year: string;
+  specialty: string;
+  status: 'analyzing' | 'completed';
+  questions: QuestionAnalysis[];
+  addedAt: string;
+  overallNotes?: string;
 }
 
 export interface VideoLesson {
@@ -57,6 +88,13 @@ export interface Flashcard {
   front: string;
   back: string;
   lastReviewed?: string;
+}
+
+export interface Note {
+  id: string;
+  title: string;
+  content: string;
+  updatedAt: string;
 }
 
 export type WeeklySchedule = Record<number, string[]>;

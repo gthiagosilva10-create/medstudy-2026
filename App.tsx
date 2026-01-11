@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Schedule from './components/Schedule';
@@ -66,16 +66,14 @@ const App: React.FC = () => {
   const [bgImage, setBgImage] = useState<string>('');
   const [bgOpacity, setBgOpacity] = useState<number>(100);
   const [bgBrightness, setBgBrightness] = useState<number>(100);
-  const [bgBlur, setBgBlur] = useState<number>(0);
-  const [bgContrast, setBgContrast] = useState<number>(100);
-  
   const [isStyleOpen, setIsStyleOpen] = useState(false);
+  const [showSaveToast, setShowSaveToast] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [targetExam, setTargetExam] = useState({
     name: 'CERMAM 2025',
     date: new Date(new Date().getFullYear() + 1, 10, 15).toISOString().split('T')[0]
   });
-  const [isConfiguringExam, setIsConfiguringExam] = useState(false);
 
   const calculateDaysRemaining = () => {
     const today = new Date();
@@ -143,9 +141,7 @@ const App: React.FC = () => {
     if (savedGeneralNotes) setGeneralNotes(savedGeneralNotes);
 
     if (savedTabLabels) {
-      const parsed = JSON.parse(savedTabLabels);
-      if (!parsed.flashcards) parsed.flashcards = 'Flashcards';
-      setTabLabels(parsed);
+      setTabLabels(JSON.parse(savedTabLabels));
     }
   }, []);
 
@@ -157,6 +153,26 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  const handleManualSave = useCallback(() => {
+    setIsSaving(true);
+    // Embora o salvamento seja contínuo, aqui forçamos uma atualização limpa e feedback visual
+    localStorage.setItem('medstudy_progress', JSON.stringify(areas));
+    localStorage.setItem('medstudy_docs', JSON.stringify(docs));
+    localStorage.setItem('medstudy_videos', JSON.stringify(videos));
+    localStorage.setItem('medstudy_flashcards', JSON.stringify(flashcards));
+    localStorage.setItem('medstudy_month_schedules', JSON.stringify(monthSchedules));
+    localStorage.setItem('medstudy_monthly_plans', JSON.stringify(monthlyPlans));
+    localStorage.setItem('medstudy_general_notes', generalNotes);
+    localStorage.setItem('medstudy_exams', JSON.stringify(exams));
+    localStorage.setItem('medstudy_hot_checked', JSON.stringify(hotTopicChecks));
+    
+    setTimeout(() => {
+      setIsSaving(false);
+      setShowSaveToast(true);
+      setTimeout(() => setShowSaveToast(false), 2500);
+    }, 600);
+  }, [areas, docs, videos, flashcards, monthSchedules, monthlyPlans, generalNotes, exams, hotTopicChecks]);
 
   const handleUpdatePrimaryColor = (color: string) => {
     setPrimaryColor(color);
@@ -200,9 +216,6 @@ const App: React.FC = () => {
     localStorage.setItem('medstudy_sidebar_collapsed', String(newState));
   };
 
-  // --- Handlers for missing functions ---
-
-  // Fix: Added handleToggleTopicStatus
   const handleToggleTopicStatus = (topicId: string) => {
     if (topicId.startsWith('hot_')) {
       const index = parseInt(topicId.split('_')[1]);
@@ -226,7 +239,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Fix: Added handleAddTopic
   const handleAddTopic = (areaId: string, name: string, subArea?: string) => {
     const newTopic: Topic = {
       id: `custom-${Date.now()}`,
@@ -239,28 +251,107 @@ const App: React.FC = () => {
     localStorage.setItem('medstudy_progress', JSON.stringify(newAreas));
   };
 
-  // Fix: Added handleDeleteTopic
   const handleDeleteTopic = (areaId: string, topicId: string) => {
     const newAreas = areas.map(a => a.id === areaId ? { ...a, topics: a.topics.filter(t => t.id !== topicId) } : a);
     setAreas(newAreas);
     localStorage.setItem('medstudy_progress', JSON.stringify(newAreas));
   };
 
-  // Fix: Added handleUpdateFlashcards
   const handleUpdateFlashcards = (updated: Flashcard[]) => {
     setFlashcards(updated);
     localStorage.setItem('medstudy_flashcards', JSON.stringify(updated));
   };
 
-  // Fix: Added handleUpdateDocs
   const handleUpdateDocs = (updated: CurriculumDoc[]) => {
     setDocs(updated);
     localStorage.setItem('medstudy_docs', JSON.stringify(updated));
   };
 
+  const handleExportBackup = () => {
+    const data = {
+      version: '1.0',
+      timestamp: new Date().toISOString(),
+      areas,
+      hotTopics,
+      hotTopicChecks,
+      exams,
+      videos,
+      docs,
+      flashcards,
+      monthSchedules,
+      monthlyPlans,
+      tabOrder,
+      tabLabels,
+      generalNotes,
+      appName,
+      appSubtitle,
+      userName,
+      primaryColor,
+      isDarkMode,
+      targetExam
+    };
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MedStudy_Backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    handleManualSave();
+  };
+
+  const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target?.result as string);
+        if (confirm("Isso irá substituir todos os dados atuais pelos dados do backup. Continuar?")) {
+          if (data.areas) setAreas(data.areas);
+          if (data.hotTopics) setHotTopics(data.hotTopics);
+          if (data.hotTopicChecks) setHotTopicChecks(data.hotTopicChecks);
+          if (data.exams) setExams(data.exams);
+          if (data.videos) setVideos(data.videos);
+          if (data.docs) setDocs(data.docs);
+          if (data.flashcards) setFlashcards(data.flashcards);
+          if (data.monthSchedules) setMonthSchedules(data.monthSchedules);
+          if (data.monthlyPlans) setMonthlyPlans(data.monthlyPlans);
+          if (data.tabOrder) setTabOrder(data.tabOrder);
+          if (data.tabLabels) setTabLabels(data.tabLabels);
+          if (data.generalNotes) setGeneralNotes(data.generalNotes);
+          if (data.appName) setAppName(data.appName);
+          if (data.appSubtitle) setAppSubtitle(data.appSubtitle);
+          if (data.userName) setUserName(data.userName);
+          if (data.primaryColor) setPrimaryColor(data.primaryColor);
+          if (data.isDarkMode) setIsDarkMode(data.isDarkMode);
+          if (data.targetExam) setTargetExam(data.targetExam);
+          
+          alert("Backup importado com sucesso! Recarregando configurações...");
+          window.location.reload();
+        }
+      } catch (err) {
+        alert("Erro ao ler arquivo de backup. Certifique-se de que é um arquivo .json válido do MedStudy.");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard': return <Dashboard areas={areas} hotTopics={hotTopics} hotTopicChecks={hotTopicChecks} />;
+      case 'dashboard': return (
+        <Dashboard 
+          areas={areas} 
+          hotTopics={hotTopics} 
+          hotTopicChecks={hotTopicChecks} 
+          onExport={handleExportBackup}
+          onImport={handleImportBackup}
+        />
+      );
       case 'schedule': return (
         <Schedule 
           areas={areas} 
@@ -362,7 +453,7 @@ const App: React.FC = () => {
       case 'videos': return <VideoLibrary areas={areas} videos={videos} onUpdateVideos={(v) => { setVideos(v); localStorage.setItem('medstudy_videos', JSON.stringify(v)); }} />;
       case 'notes': return <GeneralNotes notes={generalNotes} onUpdateNotes={handleUpdateGeneralNotes} />;
       case 'edital': return <EditalManager docs={docs} onUpdateDocs={handleUpdateDocs} primaryColor={primaryColor} />;
-      default: return <Dashboard areas={areas} hotTopics={hotTopics} hotTopicChecks={hotTopicChecks} />;
+      default: return <Dashboard areas={areas} hotTopics={hotTopics} hotTopicChecks={hotTopicChecks} onExport={handleExportBackup} onImport={handleImportBackup} />;
     }
   };
 
@@ -375,8 +466,6 @@ const App: React.FC = () => {
     { id: 'slate', label: 'Ardósia', hex: '#475569' },
   ];
 
-  if (areas.length === 0) return null;
-
   return (
     <div className={`flex h-screen overflow-hidden relative transition-colors duration-500 ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`}>
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
@@ -386,7 +475,7 @@ const App: React.FC = () => {
             style={{ 
               backgroundImage: `url(${bgImage})`,
               opacity: bgOpacity / 100,
-              filter: `brightness(${bgBrightness}%) blur(${bgBlur}px) contrast(${bgContrast}%)`
+              filter: `brightness(${bgBrightness}%) blur(0px) contrast(100%)`
             }}
           />
         )}
@@ -414,18 +503,39 @@ const App: React.FC = () => {
         <main className="flex-1 overflow-y-auto p-4 md:p-8 transition-all duration-300">
           <div className="max-w-6xl mx-auto">
             <header className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-white/40 dark:border-slate-800 shadow-sm transition-colors">
-                <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
-                   {tabLabels[activeTab]}
-                </h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <p className="text-gray-500 dark:text-slate-400 font-medium">
-                    {calculateDaysRemaining() > 0 
-                      ? `Faltam ${calculateDaysRemaining()} dias para a prova da ${targetExam.name}` 
-                      : `Foco total na prova!`}
-                  </p>
-                  <button onClick={() => setIsConfiguringExam(true)} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-bold transition-colors">(Alterar)</button>
+              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-md p-4 rounded-3xl border border-white/40 dark:border-slate-800 shadow-sm transition-colors flex items-center gap-4">
+                <div className="flex-1">
+                   <h2 className="text-2xl md:text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight flex items-center gap-3">
+                      {tabLabels[activeTab]}
+                   </h2>
+                   <div className="flex items-center gap-2 mt-1">
+                     <p className="text-gray-500 dark:text-slate-400 font-medium text-xs md:text-sm">
+                       {calculateDaysRemaining() > 0 
+                         ? `Faltam ${calculateDaysRemaining()} dias para a prova` 
+                         : `Foco total na prova!`}
+                     </p>
+                   </div>
                 </div>
+                <div className="h-10 w-px bg-gray-200 dark:bg-slate-700 mx-1 md:mx-2" />
+                <button 
+                  onClick={handleManualSave}
+                  disabled={isSaving}
+                  className={`flex items-center gap-2 px-3 md:px-5 py-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 text-[10px] md:text-xs font-black uppercase tracking-widest text-${primaryColor}-600 dark:text-${primaryColor}-400 hover:shadow-lg transition-all active:scale-95 group overflow-hidden relative ${isSaving ? 'opacity-50' : ''}`}
+                >
+                   {isSaving ? (
+                     <span className="flex items-center gap-2">
+                        <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sincronizando...
+                     </span>
+                   ) : (
+                     <span className="flex items-center gap-2">
+                        <span className="group-hover:animate-bounce">💾</span> Salvar Agora
+                     </span>
+                   )}
+                </button>
               </div>
               
               <div className="flex items-center gap-3">
@@ -448,10 +558,19 @@ const App: React.FC = () => {
                   title="Clique para mudar seu nome"
                 >
                   {userName}
-                  <span className="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-[10px] px-2 py-1 rounded opacity-0 group-hover:opacity-100 whitespace-nowrap pointer-events-none transition-opacity">Mudar Nome</span>
                 </div>
               </div>
             </header>
+
+            {/* Toast de Salvamento Manual */}
+            {showSaveToast && (
+              <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[500] animate-in slide-in-from-top-4 fade-in duration-300">
+                <div className="bg-gray-900/90 dark:bg-slate-800/90 text-white px-8 py-3 rounded-full shadow-2xl flex items-center gap-3 font-bold border border-white/10 backdrop-blur-md">
+                   <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center text-white text-[10px]">✓</div>
+                   Progresso Sincronizado com Sucesso
+                </div>
+              </div>
+            )}
 
             {isStyleOpen && (
               <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
@@ -518,7 +637,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-8 border-t dark:border-slate-800 bg-gray-50 dark:bg-slate-900 flex gap-4">
-                    <button onClick={() => setIsStyleOpen(false)} className={`flex-1 py-4 bg-gray-900 dark:bg-${primaryColor}-600 text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-black transition-all`}>
+                    <button onClick={() => { handleManualSave(); setIsStyleOpen(false); }} className={`flex-1 py-4 bg-gray-900 dark:bg-${primaryColor}-600 text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-black transition-all`}>
                       Salvar Alterações
                     </button>
                   </div>

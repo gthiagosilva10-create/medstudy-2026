@@ -8,15 +8,16 @@ interface DashboardProps {
   areas: Area[];
   hotTopics: HotTopic[];
   hotTopicChecks: Record<string, boolean>;
+  onExport: () => void;
+  onImport: (event: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks }) => {
+const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks, onExport, onImport }) => {
   const stats = useMemo(() => {
     let totalRegular = 0;
     let completedRegular = 0;
     let inProgressRegular = 0;
 
-    // Contabiliza temas do Edital Verticalizado
     areas.forEach(area => {
       area.topics.forEach(topic => {
         totalRegular++;
@@ -25,7 +26,6 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
       });
     });
 
-    // Contabiliza Temas Quentes
     const totalHot = hotTopics.length;
     const completedHot = Object.values(hotTopicChecks).filter(Boolean).length;
 
@@ -102,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
           </div>
         </div>
 
-        {/* CARD 2: EDITAL VERTICALIZADO (SEPARADO) */}
+        {/* CARD 2: EDITAL VERTICALIZADO */}
         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-[2rem] shadow-sm border border-white dark:border-slate-800 flex items-center justify-between transition-all group hover:scale-[1.02]">
           <div>
             <p className="text-[10px] text-blue-600 dark:text-blue-400 font-black uppercase tracking-widest mb-1">Edital Verticalizado</p>
@@ -113,14 +113,13 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
             <div className="w-24 h-1 bg-gray-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
               <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${stats.regular.percent}%` }} />
             </div>
-            <p className="text-[9px] text-gray-400 font-bold mt-1 uppercase">Temas da Residência</p>
           </div>
           <div className="w-14 h-14 rounded-2xl bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400 text-2xl font-bold border border-blue-100 dark:border-blue-800">
             📚
           </div>
         </div>
 
-        {/* CARD 3: TEMAS QUENTES (SEPARADO) */}
+        {/* CARD 3: TEMAS QUENTES */}
         <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-6 rounded-[2rem] shadow-sm border border-white dark:border-slate-800 flex items-center justify-between transition-all group hover:scale-[1.02]">
           <div>
             <p className="text-[10px] text-orange-600 dark:text-orange-400 font-black uppercase tracking-widest mb-1">Temas Quentes CERMAM</p>
@@ -131,7 +130,6 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
             <div className="w-24 h-1 bg-gray-100 dark:bg-slate-800 rounded-full mt-2 overflow-hidden">
               <div className="h-full bg-orange-500 transition-all duration-1000" style={{ width: `${stats.hot.percent}%` }} />
             </div>
-            <p className="text-[9px] text-orange-500/60 font-bold mt-1 uppercase">Alta Recorrência</p>
           </div>
           <div className="w-14 h-14 rounded-2xl bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center text-orange-600 dark:text-orange-400 text-2xl font-bold border border-orange-100 dark:border-orange-800">
             🔥
@@ -150,11 +148,7 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
               <XAxis type="number" hide />
               <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 9, fill: '#94a3b8', fontWeight: '900' }} />
               <Tooltip content={<CustomTooltip />} cursor={{ fill: 'transparent' }} />
-              <Bar 
-                dataKey="v" 
-                radius={[0, 12, 12, 0]} 
-                barSize={20}
-              >
+              <Bar dataKey="v" radius={[0, 12, 12, 0]} barSize={20}>
                 {chartData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={entry.color === 'blue' ? '#3b82f6' : entry.color === 'red' ? '#ef4444' : entry.color === 'pink' ? '#ec4899' : entry.color === 'green' ? '#10b981' : entry.color === 'indigo' ? '#6366f1' : entry.color === 'orange' ? '#f97316' : '#94a3b8'} />
                 ))}
@@ -163,32 +157,41 @@ const Dashboard: React.FC<DashboardProps> = ({ areas, hotTopics, hotTopicChecks 
           </ResponsiveContainer>
         </div>
 
-        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-xl border border-white dark:border-slate-800 h-[450px] transition-all">
-          <h4 className="text-xs font-black text-gray-400 dark:text-slate-500 uppercase tracking-widest mb-8">Composição do Estudo Concluído</h4>
-          <ResponsiveContainer width="100%" height="85%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                innerRadius={70}
-                outerRadius={100}
-                paddingAngle={10}
-                dataKey="value"
-                stroke="transparent"
-                animationBegin={0}
-                animationDuration={1500}
-              >
-                {pieData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                verticalAlign="bottom" 
-                height={36} 
-                formatter={(value) => <span className="text-[10px] font-black uppercase text-gray-500 dark:text-slate-400 tracking-widest px-2">{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+        {/* CARD GESTÃO DE DADOS */}
+        <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md p-8 rounded-[2.5rem] shadow-xl border border-white dark:border-slate-800 flex flex-col transition-all">
+          <div className="flex items-center gap-4 mb-8">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center text-2xl">💾</div>
+            <div>
+               <h4 className="text-lg font-black text-gray-800 dark:text-white uppercase tracking-tight">Gestão de Dados e Arquivos</h4>
+               <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Garanta que seu progresso esteja seguro</p>
+            </div>
+          </div>
+          
+          <div className="flex-1 space-y-6">
+             <div className="p-6 bg-gray-50 dark:bg-slate-800/50 rounded-3xl border border-gray-100 dark:border-slate-800">
+                <p className="text-sm text-gray-600 dark:text-slate-400 leading-relaxed mb-6 font-medium">
+                  Seus dados são salvos localmente no seu navegador. Para maior segurança, exporte um backup físico regularmente. Use o backup para restaurar seu progresso em outro dispositivo.
+                </p>
+                
+                <div className="flex flex-col sm:flex-row gap-4">
+                   <button 
+                    onClick={onExport}
+                    className="flex-1 py-4 bg-gray-900 dark:bg-blue-600 text-white rounded-2xl font-black text-xs uppercase shadow-xl hover:scale-105 transition-all flex items-center justify-center gap-3"
+                   >
+                     📥 Exportar Backup (.json)
+                   </button>
+                   
+                   <label className="flex-1 py-4 bg-white dark:bg-slate-800 border-2 border-dashed border-gray-200 dark:border-slate-700 text-gray-500 dark:text-slate-400 rounded-2xl font-black text-xs uppercase hover:border-blue-500 hover:text-blue-500 transition-all flex items-center justify-center gap-3 cursor-pointer">
+                     📂 Importar Backup
+                     <input type="file" accept=".json" onChange={onImport} className="hidden" />
+                   </label>
+                </div>
+             </div>
+
+             <div className="p-5 border-l-4 border-amber-500 bg-amber-50 dark:bg-amber-900/10 rounded-r-3xl text-xs text-amber-800 dark:text-amber-400">
+                <strong>Atenção:</strong> Arquivos pesados (como PDFs e Vídeos) são salvos como referências. Ao restaurar um backup, certifique-se de que os arquivos originais ainda existam nas pastas do seu dispositivo.
+             </div>
+          </div>
         </div>
       </div>
     </div>
